@@ -1,5 +1,5 @@
 [run]
-include = app*
+include = apostles*
 
 [report]
 # Regexes for lines to exclude from consideration
