@@ -1,0 +1,12 @@
+# 自定绑定的服务提供商
+providers = [
+  "route",
+]
+# 自动绑定的中间件
+middlewares = [
+
+]
+# 自动注册的命令
+commands = [
+
+]

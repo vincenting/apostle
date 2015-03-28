@@ -9,7 +9,7 @@ import asyncio
 
 class Application(object):
 
-    def __init__(self, root_path):
+    def __init__(self, root_name):
         self.sev = None
 
     def run(self, port=3000):

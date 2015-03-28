@@ -5,38 +5,65 @@
 # @Link    : http://vincenting.com
 
 import asyncio
+import unittest
 
 from apostles.providers.route import Export as RouteProvider
+from .utils import run_until_complete, BaseTest
 
 
 class Handler(object):
     pass
+handler = Handler()
 
 
-class RouteTests(object):
+class RouteTests(BaseTest):
 
     @asyncio.coroutine
-    def setUp(self):
-        self.handler = Handler()
-        yield from RouteProvider().register(self.handler)
+    def init(self):
+        self.handler = handler
+        return (yield from RouteProvider().register(self.handler))
 
+    @run_until_complete
     def test_init(self):
-        assert self.handler.route_provider._application is self.handler
+        yield from self.init()
+        self.assertTrue(
+            self.handler.route_provider._application is self.handler)
 
-    @asyncio.coroutine
+    @run_until_complete
     def test_add_and_url(self):
+        yield from self.init()
+
         @asyncio.coroutine
         def test():
             pass
         self.handler.add_url_rule("GET", "/path", test)
-        assert self.handler.route_provider.url(
-            "test", query={"name": 1}) == "/path?name=1"
+        self.assertTrue(self.handler.route_provider.url(
+            "test", query={"name": 1}) == "/path?name=1")
 
-    @asyncio.coroutine
+    @run_until_complete
     def test_route_decorator(self):
+        yield from self.init()
+
         @self.handler.route("/path_a")
         @asyncio.coroutine
         def test_A():
             pass
-        assert self.handler.route_provider.url(
-            "test_a", query={"name": 1}) == "/path_a?name=1"
+        self.assertTrue(self.handler.route_provider.url(
+            "test_a", query={"name": 1}) == "/path_a?name=1")
+
+    @run_until_complete
+    def test_resolve(self):
+        yield from self.init()
+
+        @self.handler.route("/path_a/{id}")
+        @asyncio.coroutine
+        def test_C():
+            pass
+
+        class TestReq(object):
+            method = "GET"
+            path = "/path_a/12"
+
+        r = yield from self.handler.route_provider.resolve(TestReq())
+        self.assertTrue(r["id"] == "12")
+        self.assertTrue(r._route.name == "test_c")

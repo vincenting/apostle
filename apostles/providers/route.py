@@ -20,7 +20,6 @@ class RouteProvider():
 
     def add_url_rule(self, method, path, handler, *, name=None):
         name = name or pythonify_name(handler.__name__)
-        print(name)
         self._dispatcher.add_route(method, path, handler, name=name)
 
     def add_with_decorator(self, path, *, method="GET", name=None):
