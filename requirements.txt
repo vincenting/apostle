@@ -1,4 +1,3 @@
-aiohttp
 routes
 jinja2
 aiopg
