@@ -10,6 +10,8 @@ import toml
 import os
 from pathlib import Path
 from copy import deepcopy
+from aiohttp.server import ServerHttpProtocol
+from aiohttp import Response
 
 from .utils import SingletonDecorator, dynamic_import
 from .providers.abc import Provider
@@ -74,17 +76,31 @@ class Settings(object):
     __setitem__ = __setattr__
 
 
+class HttpRequestHandler(ServerHttpProtocol):
+
+    @asyncio.coroutine
+    def handle_request(self, message, payload):
+        response = Response(
+            self.writer, 200, http_version=message.version
+        )
+        response.add_header('Content-Type', 'text/html')
+        response.add_header('Content-Length', '18')
+        response.send_headers()
+        response.write(b'<h1>It Works!</h1>')
+        yield from response.write_eof()
+
+
 class Application(object):
 
     def __init__(self, **kwargs):
         self.loop = asyncio.get_event_loop()
-        self.sev = None
+        self.srv = None
         self.settings = Settings(**kwargs)
 
     @asyncio.coroutine
     def _register_provider(self):
         for p in self.settings.bootstrap["providers"]:
-            m = dynamic_import(("apostles", None), "providers", p)
+            m = dynamic_import((None, "apostles"), "providers", p)
             clsmembers = inspect.getmembers(m, inspect.isclass)
             for _, cls in clsmembers:
                 if not issubclass(cls, Provider) or cls is Provider:
@@ -92,15 +108,21 @@ class Application(object):
                 assert asyncio.iscoroutinefunction(cls.register)
                 yield from cls.register(self)
 
-    @asyncio.coroutine
-    def create_server(self, host, port):
+    # @asyncio.coroutine
+    def create_server(self, host, port, keep_alive):
         # 载入所有的 providers
-        yield from self._register_provider()
+        self.loop.create_task(self._register_provider())
+        coro = self.loop.create_server(
+            lambda: HttpRequestHandler(
+                debug=self.settings.env != "production",
+                keep_alive=keep_alive
+            ), host, port)
+        self.srv = self.loop.run_until_complete(coro)
 
-    def run(self, hostname="127.0.0.1", port=3000):
-        print('serving on', self.sev.sockets[0].getsockname())
+    def run(self, host="0.0.0.0", port=7890, keep_alive=75):
+        self.create_server(host, port, keep_alive)
+        print('Serving on', self.srv.sockets[0].getsockname())
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
-            print("Keyboard interrupt! exiting now.")
             exit(0)
