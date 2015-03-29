@@ -5,12 +5,14 @@
 # @Link    : http://vincenting.com
 
 import asyncio
+import inspect
 import toml
 import os
 from pathlib import Path
 from copy import deepcopy
 
-from .utils import SingletonDecorator
+from .utils import SingletonDecorator, dynamic_import
+from .providers.abc import Provider
 
 
 @SingletonDecorator
@@ -75,13 +77,30 @@ class Settings(object):
 class Application(object):
 
     def __init__(self, **kwargs):
+        self.loop = asyncio.get_event_loop()
         self.sev = None
         self.settings = Settings(**kwargs)
 
-    def run(self, port=3000):
-        loop = asyncio.get_event_loop()
+    @asyncio.coroutine
+    def _register_provider(self):
+        for p in self.settings.bootstrap["providers"]:
+            m = dynamic_import(("apostles", None), "providers", p)
+            clsmembers = inspect.getmembers(m, inspect.isclass)
+            for _, cls in clsmembers:
+                if not issubclass(cls, Provider) or cls is Provider:
+                    continue
+                assert asyncio.iscoroutinefunction(cls.register)
+                yield from cls.register(self)
+
+    @asyncio.coroutine
+    def create_server(self, host, port):
+        # 载入所有的 providers
+        yield from self._register_provider()
+
+    def run(self, hostname="127.0.0.1", port=3000):
         print('serving on', self.sev.sockets[0].getsockname())
         try:
-            loop.run_forever()
+            self.loop.run_forever()
         except KeyboardInterrupt:
-            pass
+            print("Keyboard interrupt! exiting now.")
+            exit(0)

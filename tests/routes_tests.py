@@ -8,6 +8,7 @@ import asyncio
 
 from apostles.providers.route import Export as RouteProvider
 from .utils import run_until_complete, BaseTest
+from apostles.web import Application
 
 
 class Handler(object):
@@ -66,3 +67,10 @@ class RouteTests(BaseTest):
         r = yield from self.handler.route_provider.resolve(TestReq())
         self.assertTrue(r["id"] == "12")
         self.assertTrue(r._route.name == "test_c")
+
+    @run_until_complete
+    def test_with_application(self):
+        app = Application()
+        yield from app._register_provider()
+        self.assertTrue(app.route_provider.url(
+            "test_a", query={"name": 1}) == "/path_a?name=1")

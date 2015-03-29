@@ -4,6 +4,8 @@
 # @Author  : Vincent Ting (homerdd@gmail.com)
 # @Link    : http://vincenting.com
 
+__all__ = ("Export")
+
 import asyncio
 from aiohttp.web import UrlDispatcher
 import re
@@ -11,8 +13,6 @@ import re
 
 from .abc import Provider
 from apostles.utils import SingletonDecorator
-
-__all__ = ("Export")
 
 
 def pythonify_name(name):

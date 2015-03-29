@@ -4,6 +4,8 @@
 # @Author  : Vincent Ting (homerdd@gmail.com)
 # @Link    : http://vincenting.com
 
+__all__ = ("Provider")
+
 from abc import abstractmethod
 
 
