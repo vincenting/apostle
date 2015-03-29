@@ -8,13 +8,36 @@ import asyncio
 import inspect
 import toml
 import os
+import importlib
 from pathlib import Path
 from copy import deepcopy
 from aiohttp.server import ServerHttpProtocol
 from aiohttp import Response
 
-from .utils import SingletonDecorator, dynamic_import
+from .utils import SingletonDecorator
 from .providers.abc import Provider
+
+
+__import_cache = {}
+
+
+def dynamic_import(parents, package, name):
+    _id = str(parents) + package + name
+    if _id in __import_cache:
+        return __import_cache[_id]
+    if len(parents) is 1:
+        return importlib.import_module(".".join(
+            [x for x in (parents[0], package, name) if x]
+        ))
+    for parent in parents:
+        try:
+            __import_cache[_id] = dynamic_import((parent, ), package, name)
+            return __import_cache[_id]
+        except ImportError:
+            continue
+    raise ImportError("Can not find {name} in {package}".format_map(
+        {"package": package, "name": name}
+    ))
 
 
 @SingletonDecorator
@@ -78,6 +101,9 @@ class Settings(object):
 
 class HttpRequestHandler(ServerHttpProtocol):
 
+    """ 默认的 HTTP 请求处理器
+    """
+
     @asyncio.coroutine
     def handle_request(self, message, payload):
         response = Response(
@@ -108,12 +134,12 @@ class Application(object):
                 assert asyncio.iscoroutinefunction(cls.register)
                 yield from cls.register(self)
 
-    # @asyncio.coroutine
     def create_server(self, host, port, keep_alive):
         # 载入所有的 providers
         self.loop.create_task(self._register_provider())
         coro = self.loop.create_server(
-            lambda: HttpRequestHandler(
+            # 允许通过 settings.handler 修改默认的 HTTP 请求处理
+            lambda: (self.settings["handler"] or HttpRequestHandler)(
                 debug=self.settings.env != "production",
                 keep_alive=keep_alive
             ), host, port)
