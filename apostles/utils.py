@@ -4,12 +4,29 @@
 # @Author  : Vincent Ting (homerdd@gmail.com)
 # @Link    : http://vincenting.com
 
-import re
+import importlib
 
 
-def pythonify_name(name):
-    name = re.sub('([a-z_])([A-Z][_a-z])', '\\1 \\2', name)
-    return re.sub('[^\w+]', '_', name.lower())
+__import_cache = {}
+
+
+def dynamic_import(parents, package, name):
+    _id = str(parents) + package + name
+    if _id in __import_cache:
+        return __import_cache[_id]
+    if len(parents) is 1:
+        return importlib.import_module(".".join(
+            [x for x in (parents[0], package, name) if x]
+        ))
+    for parent in parents:
+        try:
+            __import_cache[_id] = dynamic_import((parent, ), package, name)
+            return __import_cache[_id]
+        except ImportError:
+            continue
+    raise ImportError("Can not find {name} in {package}".format_map(
+        {"package": package, "name": name}
+    ))
 
 
 class SingletonDecorator:

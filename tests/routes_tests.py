@@ -5,7 +5,6 @@
 # @Link    : http://vincenting.com
 
 import asyncio
-import unittest
 
 from apostles.providers.route import Export as RouteProvider
 from .utils import run_until_complete, BaseTest

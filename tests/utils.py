@@ -6,8 +6,13 @@
 
 import asyncio
 import unittest
+from inspect import getsourcefile
+from os import path
 
 from functools import wraps
+
+CURRENT_PATH = path.join(
+    path.dirname(path.abspath(getsourcefile(lambda _: None))), "example")
 
 
 class BaseTest(unittest.TestCase):

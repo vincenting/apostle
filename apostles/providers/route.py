@@ -6,9 +6,18 @@
 
 import asyncio
 from aiohttp.web import UrlDispatcher
+import re
+
 
 from .abc import Provider
-from apostles.utils import SingletonDecorator, pythonify_name
+from apostles.utils import SingletonDecorator
+
+__all__ = ("Export")
+
+
+def pythonify_name(name):
+    name = re.sub('([a-z_])([A-Z][_a-z])', '\\1 \\2', name)
+    return re.sub('[^\w+]', '_', name.lower())
 
 
 @SingletonDecorator
