@@ -25,5 +25,6 @@ def test_update_toml_config():
 
 
 def test_set_and_get():
+    assert settings.name == "apostles"
     settings.name = "vincent"
     assert settings.name == "vincent"

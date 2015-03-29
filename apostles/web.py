@@ -20,17 +20,22 @@ class Settings(object):
         self._settings = kwarg
         self._settings["root_path"] = self._settings.get(
             "root_path", os.getcwd())
+        self._config_file_cache = {}
+        self._load_configs_from_config()
         self._settings["env"] = self._settings.get("env", None) or \
             os.environ.get("PYTHON_ENV", "development")
-        self._config_file_cache = {}
-
-        self._load_configs_from_config()
 
     def _load_configs_from_config(self):
         p = Path(self._settings["root_path"])
         for q in p.glob('config/*.toml'):
             with q.open() as f:
-                self._config_file_cache[q.stem] = toml.loads(f.read())
+                name, config = q.stem, toml.loads(f.read())
+                # app.toml 为全局配置文件，但是优先级低于 Application 初始化时候的参数
+                if name != "app":
+                    self._config_file_cache[name] = config
+                    continue
+                config.update(self._settings)
+                self._settings = config
 
     def __getattr__(self, key):
         """settings 获取的优先级，首先从 _settings 里面选择，如果不是字典则直接返回
