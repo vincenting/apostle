@@ -11,12 +11,9 @@ import os
 import importlib
 from pathlib import Path
 from copy import deepcopy
-from aiohttp.server import ServerHttpProtocol
-from aiohttp import Response
 
 from .utils import SingletonDecorator
 from .providers.abc import Provider
-
 
 __import_cache = {}
 
@@ -99,21 +96,9 @@ class Settings(object):
     __setitem__ = __setattr__
 
 
-class HttpRequestHandler(ServerHttpProtocol):
-
-    """ 默认的 HTTP 请求处理器
-    """
-
-    @asyncio.coroutine
-    def handle_request(self, message, payload):
-        response = Response(
-            self.writer, 200, http_version=message.version
-        )
-        response.add_header('Content-Type', 'text/html')
-        response.add_header('Content-Length', '18')
-        response.send_headers()
-        response.write(b'<h1>It Works!</h1>')
-        yield from response.write_eof()
+@asyncio.coroutine
+def default_handler(r, w):
+    pass
 
 
 class Application(object):
@@ -123,10 +108,13 @@ class Application(object):
         self.srv = None
         self.settings = Settings(**kwargs)
 
+    def import_vendor(self, package, name):
+        return dynamic_import((None, "apostles"), package, name)
+
     @asyncio.coroutine
     def _register_provider(self):
         for p in self.settings.bootstrap["providers"]:
-            m = dynamic_import((None, "apostles"), "providers", p)
+            m = self.import_vendor("providers", p)
             clsmembers = inspect.getmembers(m, inspect.isclass)
             for _, cls in clsmembers:
                 if not issubclass(cls, Provider) or cls is Provider:
@@ -134,19 +122,22 @@ class Application(object):
                 assert asyncio.iscoroutinefunction(cls.register)
                 yield from cls.register(self)
 
-    def create_server(self, host, port, keep_alive):
+    def create_server(self, host, port, **kwargs):
         # 载入所有的 providers
         self.loop.create_task(self._register_provider())
-        coro = self.loop.create_server(
+        coro = asyncio.start_server(
             # 允许通过 settings.handler 修改默认的 HTTP 请求处理
-            lambda: (self.settings["handler"] or HttpRequestHandler)(
-                debug=self.settings.env != "production",
-                keep_alive=keep_alive
-            ), host, port)
+            # 当然，这里如果可以的话，可以变成各种协议
+            self.settings["handler"] or default_handler,
+            host=host,
+            port=port,
+            loop=self.loop,
+            **kwargs
+        )
         self.srv = self.loop.run_until_complete(coro)
 
-    def run(self, host="0.0.0.0", port=7890, keep_alive=75):
-        self.create_server(host, port, keep_alive)
+    def run(self, host="0.0.0.0", port=7890, **kwargs):
+        self.create_server(host, port, **kwargs)
         print('Serving on', self.srv.sockets[0].getsockname())
         try:
             self.loop.run_forever()

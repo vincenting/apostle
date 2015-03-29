@@ -15,3 +15,4 @@ class SingletonDecorator:
         if self.instance == None:
             self.instance = self.klass(*args, **kwds)
         return self.instance
+
