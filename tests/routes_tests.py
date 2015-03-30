@@ -21,7 +21,7 @@ class RouteTests(BaseTest):
     @asyncio.coroutine
     def init(self):
         self.handler = handler
-        return (yield from RouteProvider().register(self.handler))
+        return RouteProvider().register(self.handler)
 
     @run_until_complete
     def test_init(self):

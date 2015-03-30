@@ -119,12 +119,12 @@ class Application(object):
             for _, cls in clsmembers:
                 if not issubclass(cls, Provider) or cls is Provider:
                     continue
-                assert asyncio.iscoroutinefunction(cls.register)
-                yield from cls.register(self)
+                cls.register(self)
 
     def create_server(self, host, port, **kwargs):
         # 载入所有的 providers
-        self.loop.create_task(self._register_provider())
+        # TODO 这里存在 BUG，start_server 会在 _register_provider 前执行，考虑使用锁
+        self._register_provider()
         coro = asyncio.start_server(
             # 允许通过 settings.handler 修改默认的 HTTP 请求处理
             # 当然，这里如果可以的话，可以变成各种协议

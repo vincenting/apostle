@@ -52,7 +52,6 @@ class RouteProvider():
 class Export(Provider):
 
     @staticmethod
-    @asyncio.coroutine
     def register(application):
         route_provider = RouteProvider(application)
         setattr(application, "add_url_rule", route_provider.add_url_rule)
